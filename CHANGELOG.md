@@ -5,6 +5,201 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-10-28
+
+### 🎉 New Features - Comprehensive Customization Support
+
+This release adds powerful customization options to support virtually any backend API format and authentication flow.
+
+#### Custom Storage Keys
+- **Feature**: Configure custom localStorage/sessionStorage key names
+- **Config**: `storageKeys.accessToken` and `storageKeys.refreshToken`
+- **Use Case**: Avoid conflicts when multiple apps share the same domain, or follow company naming conventions
+- **Example**:
+  ```typescript
+  storageKeys: {
+    accessToken: 'my_app_access_token',
+    refreshToken: 'my_app_refresh_token',
+  }
+  ```
+
+#### Custom Token Field Names
+- **Feature**: Support backends that return tokens with different field names
+- **Config**: `tokenFieldNames.accessToken` and `tokenFieldNames.refreshToken`
+- **Use Case**: Backend uses snake_case (`access_token`, `refresh_token`) instead of camelCase
+- **Supports**: Any field naming convention (snake_case, camelCase, kebab-case, custom)
+- **Example**:
+  ```typescript
+  tokenFieldNames: {
+    accessToken: 'access_token',
+    refreshToken: 'refresh_token',
+  }
+  // API returns: { "access_token": "...", "refresh_token": "..." }
+  ```
+
+#### Custom Refresh Request
+- **Feature**: Fully customize the token refresh request
+- **Config**: `buildRefreshRequest(refreshToken) => { body, headers, method }`
+- **Customizable**:
+  - Request body format (OAuth2, custom formats)
+  - Additional headers (device ID, client version, etc.)
+  - HTTP method (POST, PUT, PATCH)
+- **Use Cases**:
+  - OAuth2 standard format
+  - Token in header instead of body
+  - Additional authentication parameters
+  - Custom client credentials
+- **Example**:
+  ```typescript
+  buildRefreshRequest: (refreshToken) => ({
+    body: {
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: 'my-app',
+    },
+    headers: {
+      'X-Device-Id': 'device-123',
+    },
+  })
+  ```
+
+#### Custom Refresh Function
+- **Feature**: Complete control over token refresh logic
+- **Config**: `refreshTokenFn(refreshToken) => Promise<{ accessToken, refreshToken }>`
+- **Use Cases**:
+  - Custom axios instances with specific configuration
+  - GraphQL backends
+  - Token encryption/decryption
+  - Complex multi-step authentication
+  - Non-standard authentication flows
+- **Example**:
+  ```typescript
+  refreshTokenFn: async (refreshToken) => {
+    const response = await myCustomAxios.post('/auth/refresh', {
+      token: refreshToken,
+    });
+    return {
+      accessToken: response.data.jwt,
+      refreshToken: response.data.new_refresh,
+    };
+  }
+  ```
+
+### 📚 Documentation
+
+#### New Files
+- **CUSTOMIZATION.md**: Comprehensive 400+ line guide covering:
+  - Detailed explanation of all customization options
+  - 8+ real-world usage examples
+  - Integration guides for Laravel, AWS Cognito, Firebase, GraphQL
+  - Best practices and tips
+  - Migration guide
+  - Debugging strategies
+
+- **examples/custom-config-usage.ts**: 8 complete examples:
+  - Custom storage keys
+  - Backend with snake_case
+  - OAuth2 standard format
+  - Token in header
+  - Completely custom refresh logic
+  - GraphQL backend
+  - Multiple apps on same domain
+  - Combined configuration
+
+#### Updated Files
+- **README.md**: 
+  - Added "Customization" section with quick examples
+  - Updated configuration interface documentation
+  - Links to CUSTOMIZATION.md for detailed guides
+
+### 🔧 Technical Changes
+
+#### Core Updates
+- **src/core/types.ts**: 
+  - Added `StorageKeysConfig` interface
+  - Added `TokenFieldNamesConfig` interface
+  - Added `RefreshRequestConfig` interface
+  - Updated `AuxiosConfig` with 4 new optional fields
+  
+- **src/core/token-storage.ts**:
+  - Updated all storage adapters to accept custom keys
+  - `LocalStorageAdapter`, `SessionStorageAdapter` now accept `StorageKeysConfig`
+  - `CookieStorageAdapter` accepts keys in options
+  - Updated `createStorage()` function signature
+  - Default keys remain unchanged for backward compatibility
+
+- **src/auxios.ts**:
+  - Implemented custom refresh logic with priority system:
+    1. `refreshTokenFn` (highest priority - complete override)
+    2. `buildRefreshRequest` + `tokenFieldNames` (custom request + field mapping)
+    3. Default behavior (standard format)
+  - Pass custom storage keys to storage adapters
+  - Enhanced error message for missing refresh token
+
+### 🎯 Real-World Backend Support
+
+Now officially supports:
+- ✅ Laravel (snake_case responses)
+- ✅ Ruby on Rails (snake_case conventions)
+- ✅ Django (Python conventions)
+- ✅ AWS Cognito (custom auth flow)
+- ✅ Firebase Authentication (custom token format)
+- ✅ Auth0 (OAuth2 standard)
+- ✅ GraphQL APIs
+- ✅ Custom authentication systems
+- ✅ Any backend API format
+
+### 📊 Bundle Size
+
+- **ESM**: 28.20 kB (6.66 kB gzipped) - minimal increase
+- **CJS**: 21.71 kB (5.91 kB gzipped) - minimal increase
+- **Impact**: <0.3 kB increase for comprehensive customization
+
+### ♻️ Backward Compatibility
+
+- **100% backward compatible**: All existing code continues to work without changes
+- All new configuration options are optional
+- Default values match v1.0.0 behavior
+- No breaking changes
+
+### 🔄 Migration from 1.0.0
+
+No migration needed! Simply update the package:
+```bash
+pnpm update @trungpham.liam/auxios
+```
+
+Existing code works as-is. Adopt new features when needed:
+```typescript
+// Before (v1.0.0) - still works in v1.1.0
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+});
+
+// After (v1.1.0) - opt-in to new features
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  tokenFieldNames: { 
+    accessToken: 'access_token',
+    refreshToken: 'refresh_token',
+  },
+});
+```
+
+### 📝 Examples Added
+
+8 comprehensive examples covering:
+1. Custom storage keys for conflict avoidance
+2. Backend using snake_case
+3. OAuth2 standard format
+4. Custom refresh request with headers
+5. Token in header instead of body
+6. Completely custom refresh logic
+7. GraphQL backend integration
+8. Multiple apps on same domain
+
+---
+
 ## [1.0.0] - 2025-10-28
 
 ### 🎉 Initial Release
