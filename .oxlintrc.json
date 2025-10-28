@@ -1,0 +1,6 @@
+{
+  "rules": {
+    "typescript": "allow",
+    "correctness": "allow"
+  }
+}

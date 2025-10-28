@@ -1,0 +1,57 @@
+{
+  "name": "auxios",
+  "version": "0.0.1",
+  "description": "Production-ready TypeScript authentication library with automatic token refresh, multi-tab sync, and race condition prevention",
+  "type": "module",
+  "main": "./dist/auxios.cjs",
+  "module": "./dist/auxios.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/auxios.js",
+      "require": "./dist/auxios.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "oxlint src && biome check src",
+    "lint:fix": "biome check --write src",
+    "format": "biome format --write src",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "auth",
+    "authentication",
+    "token",
+    "jwt",
+    "refresh-token",
+    "axios",
+    "fetch",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.2.2",
+    "oxlint": "^0.12.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vite-plugin-dts": "^4.3.0"
+  },
+  "peerDependencies": {
+    "axios": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "axios": {
+      "optional": true
+    }
+  }
+}
