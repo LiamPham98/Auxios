@@ -3,6 +3,17 @@
   "version": "1.0.0",
   "description": "Production-ready TypeScript authentication library with automatic token refresh, multi-tab sync, and race condition prevention",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trungpham-liam/auxios.git"
+  },
+  "bugs": {
+    "url": "https://github.com/trungpham-liam/auxios/issues"
+  },
+  "homepage": "https://github.com/trungpham-liam/auxios#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/auxios.cjs",
   "module": "./dist/auxios.js",
   "types": "./dist/index.d.ts",

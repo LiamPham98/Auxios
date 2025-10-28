@@ -6,7 +6,6 @@ import { TokenManager } from './core/token-manager';
 import { createStorage } from './core/token-storage';
 import type {
   AuxiosConfig,
-  RefreshResponse,
   RetryConfig,
   TokenExpiryConfig,
   TokenPair,
@@ -51,7 +50,7 @@ export class Auxios {
       tokenExpiry: { ...DEFAULT_TOKEN_EXPIRY_CONFIG, ...config.tokenExpiry },
     };
 
-    this.storage = createStorage(this.config.storage!);
+    this.storage = createStorage(this.config.storage!, this.config.storageKeys);
     this.eventEmitter = new EventEmitter(this.config.events);
     this.requestQueue = new RequestQueue();
     this.networkDetector = new NetworkDetector();
@@ -89,12 +88,31 @@ export class Auxios {
     this.refreshController.setRefreshFunction(async () => {
       const refreshToken = this.tokenManager.getRefreshToken();
       if (!refreshToken) {
-        throw new Error('No refresh token available');
+        const error = new Error(
+          'No refresh token available. Please login first by calling auth.setTokens() with your access and refresh tokens.',
+        ) as any;
+        error.code = 'NO_REFRESH_TOKEN';
+        throw error;
       }
+
+      // Use custom refresh function if provided
+      if (this.config.refreshTokenFn) {
+        return await this.config.refreshTokenFn(refreshToken);
+      }
+
+      // Build request using custom config or defaults
+      const requestConfig = this.config.buildRefreshRequest
+        ? this.config.buildRefreshRequest(refreshToken)
+        : {
+            body: { refreshToken },
+            headers: {},
+            method: 'POST',
+          };
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...this.config.headers,
+        ...requestConfig.headers,
       };
 
       if (this.config.csrfToken) {
@@ -102,17 +120,25 @@ export class Auxios {
       }
 
       const response = await fetch(this.config.endpoints.refresh, {
-        method: 'POST',
+        method: requestConfig.method || 'POST',
         headers,
-        body: JSON.stringify({ refreshToken }),
+        body: JSON.stringify(requestConfig.body),
       });
 
       if (!response.ok) {
         throw new Error(`Refresh failed with status ${response.status}`);
       }
 
-      const data: RefreshResponse = await response.json();
-      return data;
+      const data = await response.json();
+
+      // Map response fields using custom field names or defaults
+      const accessTokenField = this.config.tokenFieldNames?.accessToken || 'accessToken';
+      const refreshTokenField = this.config.tokenFieldNames?.refreshToken || 'refreshToken';
+
+      return {
+        accessToken: data[accessTokenField],
+        refreshToken: data[refreshTokenField],
+      };
     });
 
     if (this.config.autoRefresh) {

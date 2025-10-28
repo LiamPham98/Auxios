@@ -43,6 +43,22 @@ export interface EventCallbacks {
   onRefreshEnd?: () => void;
 }
 
+export interface StorageKeysConfig {
+  accessToken?: string;
+  refreshToken?: string;
+}
+
+export interface TokenFieldNamesConfig {
+  accessToken?: string;
+  refreshToken?: string;
+}
+
+export interface RefreshRequestConfig {
+  body?: any;
+  headers?: Record<string, string>;
+  method?: string;
+}
+
 export interface AuxiosConfig {
   endpoints: EndpointsConfig;
   storage?: StorageType;
@@ -53,6 +69,10 @@ export interface AuxiosConfig {
   multiTabSync?: boolean;
   autoRefresh?: boolean;
   csrfToken?: string;
+  storageKeys?: StorageKeysConfig;
+  tokenFieldNames?: TokenFieldNamesConfig;
+  buildRefreshRequest?: (refreshToken: string) => RefreshRequestConfig;
+  refreshTokenFn?: (refreshToken: string) => Promise<RefreshResponse>;
 }
 
 export interface AuthError extends Error {

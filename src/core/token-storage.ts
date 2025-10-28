@@ -1,45 +1,61 @@
-import type { TokenStorage } from './types';
+import type { StorageKeysConfig, TokenStorage } from './types';
 
-const ACCESS_TOKEN_KEY = 'auxios_access_token';
-const REFRESH_TOKEN_KEY = 'auxios_refresh_token';
+const DEFAULT_ACCESS_TOKEN_KEY = 'auxios_access_token';
+const DEFAULT_REFRESH_TOKEN_KEY = 'auxios_refresh_token';
 
 export class LocalStorageAdapter implements TokenStorage {
+  private accessTokenKey: string;
+  private refreshTokenKey: string;
+
+  constructor(keys?: StorageKeysConfig) {
+    this.accessTokenKey = keys?.accessToken || DEFAULT_ACCESS_TOKEN_KEY;
+    this.refreshTokenKey = keys?.refreshToken || DEFAULT_REFRESH_TOKEN_KEY;
+  }
+
   getAccessToken(): string | null {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
+    return localStorage.getItem(this.accessTokenKey);
   }
 
   getRefreshToken(): string | null {
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
+    return localStorage.getItem(this.refreshTokenKey);
   }
 
   async setTokens(accessToken: string, refreshToken: string): Promise<void> {
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    localStorage.setItem(this.accessTokenKey, accessToken);
+    localStorage.setItem(this.refreshTokenKey, refreshToken);
   }
 
   async clearTokens(): Promise<void> {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(this.accessTokenKey);
+    localStorage.removeItem(this.refreshTokenKey);
   }
 }
 
 export class SessionStorageAdapter implements TokenStorage {
+  private accessTokenKey: string;
+  private refreshTokenKey: string;
+
+  constructor(keys?: StorageKeysConfig) {
+    this.accessTokenKey = keys?.accessToken || DEFAULT_ACCESS_TOKEN_KEY;
+    this.refreshTokenKey = keys?.refreshToken || DEFAULT_REFRESH_TOKEN_KEY;
+  }
+
   getAccessToken(): string | null {
-    return sessionStorage.getItem(ACCESS_TOKEN_KEY);
+    return sessionStorage.getItem(this.accessTokenKey);
   }
 
   getRefreshToken(): string | null {
-    return sessionStorage.getItem(REFRESH_TOKEN_KEY);
+    return sessionStorage.getItem(this.refreshTokenKey);
   }
 
   async setTokens(accessToken: string, refreshToken: string): Promise<void> {
-    sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    sessionStorage.setItem(this.accessTokenKey, accessToken);
+    sessionStorage.setItem(this.refreshTokenKey, refreshToken);
   }
 
   async clearTokens(): Promise<void> {
-    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(this.accessTokenKey);
+    sessionStorage.removeItem(this.refreshTokenKey);
   }
 }
 
@@ -68,6 +84,8 @@ export class MemoryStorageAdapter implements TokenStorage {
 
 export class CookieStorageAdapter implements TokenStorage {
   private cookieOptions: string;
+  private accessTokenKey: string;
+  private refreshTokenKey: string;
 
   constructor(
     options: {
@@ -75,9 +93,12 @@ export class CookieStorageAdapter implements TokenStorage {
       path?: string;
       secure?: boolean;
       sameSite?: 'strict' | 'lax' | 'none';
+      keys?: StorageKeysConfig;
     } = {},
   ) {
-    const { domain, path = '/', secure = true, sameSite = 'strict' } = options;
+    const { domain, path = '/', secure = true, sameSite = 'strict', keys } = options;
+    this.accessTokenKey = keys?.accessToken || DEFAULT_ACCESS_TOKEN_KEY;
+    this.refreshTokenKey = keys?.refreshToken || DEFAULT_REFRESH_TOKEN_KEY;
     this.cookieOptions = [
       path ? `path=${path}` : '',
       domain ? `domain=${domain}` : '',
@@ -90,21 +111,21 @@ export class CookieStorageAdapter implements TokenStorage {
   }
 
   getAccessToken(): string | null {
-    return this.getCookie(ACCESS_TOKEN_KEY);
+    return this.getCookie(this.accessTokenKey);
   }
 
   getRefreshToken(): string | null {
-    return this.getCookie(REFRESH_TOKEN_KEY);
+    return this.getCookie(this.refreshTokenKey);
   }
 
   async setTokens(accessToken: string, refreshToken: string): Promise<void> {
-    this.setCookie(ACCESS_TOKEN_KEY, accessToken);
-    this.setCookie(REFRESH_TOKEN_KEY, refreshToken);
+    this.setCookie(this.accessTokenKey, accessToken);
+    this.setCookie(this.refreshTokenKey, refreshToken);
   }
 
   async clearTokens(): Promise<void> {
-    this.deleteCookie(ACCESS_TOKEN_KEY);
-    this.deleteCookie(REFRESH_TOKEN_KEY);
+    this.deleteCookie(this.accessTokenKey);
+    this.deleteCookie(this.refreshTokenKey);
   }
 
   private getCookie(name: string): string | null {
@@ -127,16 +148,17 @@ export class CookieStorageAdapter implements TokenStorage {
 
 export function createStorage(
   type: 'localStorage' | 'sessionStorage' | 'memory' | 'cookie',
+  keys?: StorageKeysConfig,
 ): TokenStorage {
   switch (type) {
     case 'localStorage':
-      return new LocalStorageAdapter();
+      return new LocalStorageAdapter(keys);
     case 'sessionStorage':
-      return new SessionStorageAdapter();
+      return new SessionStorageAdapter(keys);
     case 'memory':
       return new MemoryStorageAdapter();
     case 'cookie':
-      return new CookieStorageAdapter();
+      return new CookieStorageAdapter({ keys });
     default:
       return new MemoryStorageAdapter();
   }

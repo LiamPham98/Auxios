@@ -175,8 +175,94 @@ interface AuxiosConfig {
   multiTabSync?: boolean;
   autoRefresh?: boolean;
   csrfToken?: string;
+  
+  // NEW: Customization options
+  storageKeys?: {
+    accessToken?: string;   // Custom localStorage key (default: 'auxios_access_token')
+    refreshToken?: string;  // Custom localStorage key (default: 'auxios_refresh_token')
+  };
+  tokenFieldNames?: {
+    accessToken?: string;   // Custom API field name (default: 'accessToken')
+    refreshToken?: string;  // Custom API field name (default: 'refreshToken')
+  };
+  buildRefreshRequest?: (refreshToken: string) => {
+    body?: any;            // Custom request body
+    headers?: Record<string, string>;  // Custom headers
+    method?: string;       // Custom HTTP method (default: 'POST')
+  };
+  refreshTokenFn?: (refreshToken: string) => Promise<{
+    accessToken: string;
+    refreshToken: string;
+  }>;  // Completely custom refresh logic
 }
 ```
+
+## Customization
+
+Auxios is highly customizable to work with any backend API format.
+
+### Custom Storage Keys
+
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  storageKeys: {
+    accessToken: 'my_app_access_token',
+    refreshToken: 'my_app_refresh_token',
+  },
+});
+```
+
+### Backend with snake_case
+
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  tokenFieldNames: {
+    accessToken: 'access_token',
+    refreshToken: 'refresh_token',
+  },
+});
+// API returns: { "access_token": "...", "refresh_token": "..." }
+```
+
+### Custom Refresh Request
+
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  buildRefreshRequest: (refreshToken) => ({
+    body: {
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: 'my-app',
+    },
+    headers: {
+      'X-Device-Id': 'device-123',
+    },
+  }),
+});
+```
+
+### Completely Custom Refresh Logic
+
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  refreshTokenFn: async (refreshToken) => {
+    const response = await myCustomAxios.post('/auth/refresh', {
+      token: refreshToken,
+    });
+    
+    return {
+      accessToken: response.data.jwt,
+      refreshToken: response.data.new_refresh,
+    };
+  },
+});
+```
+
+For more customization examples, see [CUSTOMIZATION.md](./CUSTOMIZATION.md).
 
 ## Features in Detail
 
