@@ -131,13 +131,48 @@ export class Auxios {
 
       const data = await response.json();
 
-      // Map response fields using custom field names or defaults
-      const accessTokenField = this.config.tokenFieldNames?.accessToken || 'accessToken';
-      const refreshTokenField = this.config.tokenFieldNames?.refreshToken || 'refreshToken';
+      const resolveField = (source: unknown, field: string): unknown => {
+        if (!source || typeof source !== 'object') return undefined;
+        if (!field) return undefined;
+
+        return field.split('.').reduce<unknown>((current, key) => {
+          if (current === undefined || current === null) return undefined;
+          const container =
+            typeof current === 'object' ? (current as Record<string, unknown>) : undefined;
+          return container ? container[key] : undefined;
+        }, source);
+      };
+
+      const searchContainers = [
+        data,
+        (data && typeof data === 'object' && (data as Record<string, unknown>).data) || undefined,
+        (data && typeof data === 'object' && (data as Record<string, unknown>).result) || undefined,
+        (data && typeof data === 'object' && (data as Record<string, unknown>).payload) || undefined,
+        (data && typeof data === 'object' && (data as Record<string, unknown>).tokens) || undefined,
+      ];
+
+      const extractToken = (field: string): string | undefined => {
+        for (const container of searchContainers) {
+          const value = resolveField(container, field);
+          if (typeof value === 'string' && value.trim() !== '') {
+            return value;
+          }
+        }
+        return undefined;
+      };
+
+      const accessTokenField = extractToken(this.config.tokenFieldNames?.accessToken || 'accessToken');
+      const refreshTokenField = extractToken(this.config.tokenFieldNames?.refreshToken || 'refreshToken');
+
+      if (!accessTokenField || !refreshTokenField) {
+        throw new Error(
+          'Refresh response is missing expected token fields. Verify `tokenFieldNames` matches your API response shape.',
+        );
+      }
 
       return {
-        accessToken: data[accessTokenField],
-        refreshToken: data[refreshTokenField],
+        accessToken: accessTokenField,
+        refreshToken: refreshTokenField,
       };
     });
 

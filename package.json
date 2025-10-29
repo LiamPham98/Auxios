@@ -1,6 +1,6 @@
 {
   "name": "@trungpham.liam/auxios",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Production-ready TypeScript authentication library with automatic token refresh, multi-tab sync, and race condition prevention",
   "type": "module",
   "repository": {
