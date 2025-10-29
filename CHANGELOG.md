@@ -5,6 +5,229 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-10-29
+
+### 🎉 New Features - expires_in Support & Enhanced Documentation
+
+This release adds support for server-provided token expiry times (`expires_in`), making Auxios work seamlessly with opaque tokens and APIs that don't use JWT. It also includes a complete documentation overhaul with improved organization and comprehensive guides.
+
+#### expires_in / refresh_expires_in Support
+
+**The Problem:**
+- Not all APIs use JWT tokens with `exp` field
+- Some APIs use opaque tokens (non-JWT)
+- Server-side dynamic token lifetimes weren't supported
+- Proactive refresh relied entirely on JWT decode
+
+**The Solution:**
+Auxios now supports `expires_in` field from API responses with automatic priority handling:
+
+**Priority Order:**
+1. ✅ **`expires_in` from API response** (highest priority) - Use server-provided expiry time
+2. ✅ **JWT decode** (fallback) - Extract `exp` field from token
+3. ⚠️ **Manual refresh only** - No automatic refresh if neither available
+
+**Configuration:**
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  tokenFieldNames: {
+    accessToken: 'access_token',
+    refreshToken: 'refresh_token',
+    expiresIn: 'expires_in',           // NEW: Token expiry in seconds
+    refreshExpiresIn: 'refresh_expires_in', // NEW: Refresh token expiry
+  },
+});
+```
+
+**API Response Format:**
+```json
+{
+  "access_token": "opaque-token-xyz",
+  "refresh_token": "refresh-xyz",
+  "expires_in": 3600,           // 1 hour
+  "refresh_expires_in": 2592000 // 30 days
+}
+```
+
+**Features:**
+- ✅ Works with both JWT and opaque tokens
+- ✅ Server controls token lifetime dynamically
+- ✅ More accurate proactive refresh scheduling
+- ✅ Backward compatible (JWT decode still works)
+- ✅ Automatic nested structure search
+- ✅ Custom field names support (`ttl`, `expiresIn`, etc.)
+
+**New Types:**
+```typescript
+interface TokenFieldNamesConfig {
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: string;          // NEW
+  refreshExpiresIn?: string;   // NEW
+}
+
+interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn?: number;          // NEW
+  refreshExpiresIn?: number;   // NEW
+}
+
+interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn?: number;          // NEW
+  refreshExpiresIn?: number;   // NEW
+}
+```
+
+**Use Cases:**
+- ✅ Opaque tokens (non-JWT)
+- ✅ API uses dynamic token expiry
+- ✅ OAuth2 standard format
+- ✅ Server-side control over token lifetimes
+- ✅ Tokens without `exp` field
+
+### 📚 Documentation Overhaul
+
+#### Complete README.md Rewrite
+- **New Structure**: Better organized with clear sections
+- **Installation**: Added all package managers (npm, pnpm, yarn, bun)
+- **Quick Start**: Minimal setup (3 lines) + full example
+- **Common Use Cases**: 6 real-world scenarios
+  - REST API with JWT
+  - snake_case backend
+  - API with expires_in
+  - OAuth2 format
+  - httpOnly cookies
+  - GraphQL backend
+- **Integration Examples**: Axios, Fetch, React, Vue
+- **Complete API Reference**: All methods documented
+- **Security Best Practices**: httpOnly cookies, CSRF, token rotation
+- **Better Organization**: Easier navigation and discovery
+
+#### CUSTOMIZATION.md Enhancements
+- **Quick Reference Table**: Common scenarios at a glance
+- **Enhanced expires_in Documentation**: Complete guide with examples
+- **Migration Guides**: 
+  - JWT-only → expires_in
+  - localStorage → httpOnly cookies
+  - Adding CSRF protection
+  - Custom refresh logic
+  - Converting from axios-auth-refresh
+- **Comparison Tables**: JWT decode vs expires_in
+
+#### New TROUBLESHOOTING.md
+Complete troubleshooting guide with solutions for:
+- ✅ Token not refreshing automatically
+- ✅ 401 errors still occurring
+- ✅ Multi-tab sync not working
+- ✅ expires_in not being used
+- ✅ Custom field names not working
+- ✅ TypeScript type errors
+- ✅ CORS issues
+- ✅ Refresh loops
+
+Each issue includes:
+- Symptoms
+- Possible causes
+- Step-by-step solutions
+- Code examples
+
+#### New Example: expires-in-usage.ts
+Complete example demonstrating:
+- Basic expires_in setup
+- OAuth2 format
+- Custom TTL field names
+- Nested response structures
+- Integration with Axios/Fetch
+- Real-world usage patterns
+
+### 🚀 CI/CD Automation
+
+#### GitHub Actions Workflow
+- **Auto-publish to npm** on tag push
+- **Automated pipeline**: typecheck → lint → build → publish
+- **Documentation**: 
+  - `.github/workflows/publish.yml` - Workflow definition
+  - `.github/PUBLISHING.md` - Complete publishing guide
+  - `.github/README.md` - Workflows overview
+
+**Usage:**
+```bash
+# Bump version
+npm version minor  # 1.1.1 -> 1.2.0
+
+# Push commit and tag
+git push origin main
+git push origin v1.2.0
+
+# GitHub Actions automatically publishes to npm ✅
+```
+
+### 🔧 Improvements
+
+#### Package.json
+- **Version**: Bumped to 1.2.0
+- **Keywords**: Added for better npm discoverability
+  - `expires-in`
+  - `token-refresh`
+  - `multi-tab-sync`
+  - `race-condition`
+  - `oauth2`
+  - `token-management`
+  - `auto-refresh`
+
+#### Token Manager
+- **Priority Logic**: expires_in > JWT decode > manual
+- **New Method**: `isRefreshTokenExpired()` - Check refresh token expiry
+- **Smart Calculation**: `calculateExpiryTime()` with fallback logic
+- **Improved Scheduling**: Uses expires_in for proactive refresh
+
+#### Core Types
+- **Extended Interfaces**: Added expires_in fields to all relevant types
+- **Type Safety**: Full TypeScript support for new features
+- **Backward Compatible**: All existing code continues to work
+
+### 📦 Examples
+
+#### Updated
+- `examples/basic-usage.ts` - Added expires_in comments
+
+#### New
+- `examples/expires-in-usage.ts` - Complete expires_in guide
+
+### 🎯 Benefits
+
+#### For Developers
+- ✅ Works with more backend APIs (JWT + opaque tokens)
+- ✅ Better documentation for faster onboarding
+- ✅ Self-service troubleshooting
+- ✅ More real-world examples
+- ✅ Easier customization
+
+#### For Projects
+- ✅ Support for dynamic token lifetimes
+- ✅ More accurate token refresh
+- ✅ Better npm discoverability
+- ✅ Automated publishing workflow
+- ✅ Professional documentation
+
+### 📊 Statistics
+
+- **Documentation**: 3 major files updated, 2 new guides added
+- **Code Quality**: All tests passing (typecheck ✅, lint ✅, build ✅)
+- **Bundle Size**: 30.72 kB (gzipped: 7.20 kB) - No increase
+- **Backward Compatible**: 100% - No breaking changes
+- **Examples**: 5 complete examples with real-world scenarios
+
+### 🔗 Links
+
+- **NPM**: https://www.npmjs.com/package/@trungpham.liam/auxios
+- **GitHub**: https://github.com/trungpham-liam/auxios
+- **Documentation**: [README.md](./README.md), [CUSTOMIZATION.md](./CUSTOMIZATION.md), [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+
 ## [1.1.1] - 2025-10-29
 
 ### 🛠️ Fixes

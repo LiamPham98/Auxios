@@ -1,6 +1,8 @@
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
+  expiresIn?: number;
+  refreshExpiresIn?: number;
 }
 
 export interface DecodedToken {
@@ -51,6 +53,8 @@ export interface StorageKeysConfig {
 export interface TokenFieldNamesConfig {
   accessToken?: string;
   refreshToken?: string;
+  expiresIn?: string;
+  refreshExpiresIn?: string;
 }
 
 export interface RefreshRequestConfig {
@@ -103,6 +107,8 @@ export interface QueuedRequest {
 export interface RefreshResponse {
   accessToken: string;
   refreshToken: string;
+  expiresIn?: number;
+  refreshExpiresIn?: number;
 }
 
 export interface MultiTabSyncMessage {

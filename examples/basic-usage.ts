@@ -53,6 +53,9 @@ async function login(email: string, password: string) {
   await auth.setTokens({
     accessToken: data.accessToken,
     refreshToken: data.refreshToken,
+    // Optional: If your API returns expires_in
+    // expiresIn: data.expires_in,
+    // refreshExpiresIn: data.refresh_expires_in,
   });
 
   console.log('Logged in successfully!');

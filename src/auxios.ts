@@ -4,12 +4,7 @@ import { RefreshController } from './core/refresh-controller';
 import { RequestQueue } from './core/request-queue';
 import { TokenManager } from './core/token-manager';
 import { createStorage } from './core/token-storage';
-import type {
-  AuxiosConfig,
-  RetryConfig,
-  TokenExpiryConfig,
-  TokenPair,
-} from './core/types';
+import type { AuxiosConfig, RetryConfig, TokenExpiryConfig, TokenPair } from './core/types';
 import { AxiosInterceptor } from './interceptors/axios-interceptor';
 import { FetchWrapper } from './interceptors/fetch-wrapper';
 import { MultiTabSync } from './sync/multi-tab-sync';
@@ -147,7 +142,8 @@ export class Auxios {
         data,
         (data && typeof data === 'object' && (data as Record<string, unknown>).data) || undefined,
         (data && typeof data === 'object' && (data as Record<string, unknown>).result) || undefined,
-        (data && typeof data === 'object' && (data as Record<string, unknown>).payload) || undefined,
+        (data && typeof data === 'object' && (data as Record<string, unknown>).payload) ||
+          undefined,
         (data && typeof data === 'object' && (data as Record<string, unknown>).tokens) || undefined,
       ];
 
@@ -161,8 +157,22 @@ export class Auxios {
         return undefined;
       };
 
-      const accessTokenField = extractToken(this.config.tokenFieldNames?.accessToken || 'accessToken');
-      const refreshTokenField = extractToken(this.config.tokenFieldNames?.refreshToken || 'refreshToken');
+      const extractNumber = (field: string): number | undefined => {
+        for (const container of searchContainers) {
+          const value = resolveField(container, field);
+          if (typeof value === 'number' && value > 0) {
+            return value;
+          }
+        }
+        return undefined;
+      };
+
+      const accessTokenField = extractToken(
+        this.config.tokenFieldNames?.accessToken || 'accessToken',
+      );
+      const refreshTokenField = extractToken(
+        this.config.tokenFieldNames?.refreshToken || 'refreshToken',
+      );
 
       if (!accessTokenField || !refreshTokenField) {
         throw new Error(
@@ -170,9 +180,16 @@ export class Auxios {
         );
       }
 
+      const expiresInField = extractNumber(this.config.tokenFieldNames?.expiresIn || 'expires_in');
+      const refreshExpiresInField = extractNumber(
+        this.config.tokenFieldNames?.refreshExpiresIn || 'refresh_expires_in',
+      );
+
       return {
         accessToken: accessTokenField,
         refreshToken: refreshTokenField,
+        expiresIn: expiresInField,
+        refreshExpiresIn: refreshExpiresInField,
       };
     });
 

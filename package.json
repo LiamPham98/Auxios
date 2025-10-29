@@ -1,6 +1,6 @@
 {
   "name": "@trungpham.liam/auxios",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Production-ready TypeScript authentication library with automatic token refresh, multi-tab sync, and race condition prevention",
   "type": "module",
   "repository": {
@@ -44,7 +44,14 @@
     "refresh-token",
     "axios",
     "fetch",
-    "typescript"
+    "typescript",
+    "expires-in",
+    "token-refresh",
+    "multi-tab-sync",
+    "race-condition",
+    "oauth2",
+    "token-management",
+    "auto-refresh"
   ],
   "author": "",
   "license": "MIT",
