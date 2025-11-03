@@ -5,6 +5,100 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2025-11-03
+
+### 🛠️ Fixes
+- **Separate 403 Forbidden from 401 Unauthorized handling**: Fixed incorrect behavior where 403 errors triggered automatic token refresh. Now 403 errors are properly treated as permission denied and thrown immediately without refresh attempts, while 401 errors continue to trigger token refresh as expected.
+  
+### 🎯 Behavior Changes
+- **401 (Unauthorized)**: Token expired/invalid → Automatic token refresh → Retry request
+- **403 (Forbidden)**: Permission denied/insufficient privileges → Throw error immediately → No refresh or retry
+- **403 with `X-Token-Blacklisted` header**: Token has been revoked → Clear tokens → Force logout
+
+### 📚 Documentation
+- **Added `examples/error-handling-403.ts`**: Comprehensive example demonstrating proper 403 error handling with:
+  - Scenario 1: User lacking permissions to access resources
+  - Scenario 2: Blacklisted token detection and handling
+  - Scenario 3: Rate limiting and IP restrictions
+  - Comparison between 401 vs 403 behaviors
+  - Best practices for handling forbidden errors
+  - Type-safe error handling patterns
+
+### 🔧 Technical Changes
+
+#### Axios Interceptor (`src/interceptors/axios-interceptor.ts`)
+- Split `onResponseError` logic to handle 401 and 403 separately
+- Added new `handleForbiddenError()` method for 403-specific handling
+- 403 errors now return `AuthErrorCode.FORBIDDEN` without triggering refresh
+
+#### Fetch Wrapper (`src/interceptors/fetch-wrapper.ts`)
+- Updated `handleResponse()` to treat 403 independently from 401
+- 403 errors throw immediately with proper error code
+- Maintains consistency with Axios interceptor behavior
+
+### ✨ What This Fixes
+
+**Before (1.2.1)**:
+```typescript
+// ❌ Wrong: 403 triggered token refresh attempt
+api.get('/admin/users') // 403 Forbidden
+  → Tried to refresh token (unnecessary)
+  → Retried request (still failed with 403)
+  → Wasted API calls and user time
+```
+
+**After (1.2.2)**:
+```typescript
+// ✅ Correct: 403 throws error immediately
+api.get('/admin/users') // 403 Forbidden
+  → Throws AuthErrorCode.FORBIDDEN immediately
+  → onAuthError callback triggered
+  → Application handles permission denied properly
+```
+
+### 🎯 Use Cases
+
+Now properly handles:
+- ✅ Admin-only endpoints accessed by regular users
+- ✅ Resource-level permissions (e.g., viewing others' private data)
+- ✅ Rate limiting (too many requests)
+- ✅ IP-based restrictions
+- ✅ Token blacklist/revocation
+- ✅ Account suspension or role changes
+
+### ♻️ Backward Compatibility
+
+**Potentially Breaking**: If your application relied on 403 triggering token refresh (incorrect behavior), you'll need to update error handling. However, this was a bug fix to align with HTTP standards and correct authentication practices.
+
+**Migration**:
+```typescript
+// Add proper 403 error handling in your event callbacks
+const auth = new Auxios({
+  events: {
+    onAuthError: (error) => {
+      if (error.code === AuthErrorCode.FORBIDDEN) {
+        // Handle permission denied
+        showNotification('You do not have permission to access this resource');
+        // Optionally redirect
+        // router.push('/dashboard');
+      }
+    }
+  }
+});
+```
+
+### 📦 Bundle Size
+No significant change in bundle size.
+
+---
+
+## [1.2.1] - 2025-10-30
+
+### 🛠️ Fixes
+- **Add pnpm-lock.yaml to version control for CI/CD**: Lockfile is required for GitHub Actions workflow to ensure consistent dependency versions across environments.
+
+---
+
 ## [1.2.0] - 2025-10-29
 
 ### 🎉 New Features - expires_in Support & Enhanced Documentation

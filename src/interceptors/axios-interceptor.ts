@@ -89,8 +89,12 @@ export class AxiosInterceptor {
 
     const status = error.response?.status;
 
-    if (status === 401 || status === 403) {
+    if (status === 401) {
       return this.handleAuthError(error);
+    }
+
+    if (status === 403) {
+      return this.handleForbiddenError(error);
     }
 
     if (status && status >= 500) {
@@ -128,6 +132,27 @@ export class AxiosInterceptor {
     } catch (refreshError) {
       return Promise.reject(refreshError);
     }
+  }
+
+  private handleForbiddenError(error: unknown): Promise<unknown> {
+    if (!this.isAxiosError(error)) {
+      return Promise.reject(error);
+    }
+
+    if (error.response?.headers[TOKEN_BLACKLIST_HEADER.toLowerCase()]) {
+      const authError = Object.assign(new Error('Token has been blacklisted'), {
+        code: AuthErrorCode.TOKEN_BLACKLISTED,
+      });
+      return Promise.reject(authError);
+    }
+
+    const forbiddenError = Object.assign(new Error('Request forbidden'), {
+      code: AuthErrorCode.FORBIDDEN,
+      statusCode: error.response?.status,
+      originalError: error,
+    });
+
+    return Promise.reject(forbiddenError);
   }
 
   private async handleServerError(error: unknown): Promise<unknown> {

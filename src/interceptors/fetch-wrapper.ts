@@ -68,8 +68,17 @@ export class FetchWrapper {
       throw error;
     }
 
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       return this.handleAuthError(url, options, response);
+    }
+
+    if (response.status === 403) {
+      const forbiddenError = Object.assign(new Error('Request forbidden'), {
+        code: AuthErrorCode.FORBIDDEN,
+        statusCode: response.status,
+        originalError: response,
+      });
+      throw forbiddenError;
     }
 
     if (response.status >= 500) {
