@@ -1,3 +1,4 @@
+import type { EventEmitter } from '../core/event-emitter';
 import type { RefreshController } from '../core/refresh-controller';
 import type { RequestQueue } from '../core/request-queue';
 import type { TokenManager } from '../core/token-manager';
@@ -14,6 +15,7 @@ export class FetchWrapper {
   private requestQueue: RequestQueue;
   private networkDetector: NetworkDetector;
   private retryStrategy: RetryStrategy;
+  private eventEmitter: EventEmitter;
 
   constructor(
     tokenManager: TokenManager,
@@ -21,12 +23,14 @@ export class FetchWrapper {
     requestQueue: RequestQueue,
     networkDetector: NetworkDetector,
     retryStrategy: RetryStrategy,
+    eventEmitter: EventEmitter,
   ) {
     this.tokenManager = tokenManager;
     this.refreshController = refreshController;
     this.requestQueue = requestQueue;
     this.networkDetector = networkDetector;
     this.retryStrategy = retryStrategy;
+    this.eventEmitter = eventEmitter;
   }
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
@@ -78,6 +82,7 @@ export class FetchWrapper {
         statusCode: response.status,
         originalError: response,
       });
+      this.eventEmitter.emitAuthError(forbiddenError);
       throw forbiddenError;
     }
 

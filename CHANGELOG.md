@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2025-11-03
+
+### 🛠️ Fixes
+- **Trigger `onAuthError` callback for 403 Forbidden errors**: Fixed issue where `onAuthError` callback was not being called when API returns 403 Forbidden. Now the callback is properly triggered with `AuthErrorCode.FORBIDDEN`, allowing applications to handle permission denied errors correctly.
+
+### 🔧 Technical Changes
+- **Axios Interceptor**: Inject `EventEmitter` and call `emitAuthError()` in `handleForbiddenError()` before rejecting the error
+- **Fetch Wrapper**: Inject `EventEmitter` and call `emitAuthError()` when handling 403 responses
+- **Core**: Pass `EventEmitter` instance to both interceptor constructors
+
+### ✨ What This Fixes
+
+**Before (1.2.2)**:
+```typescript
+// ❌ Wrong: onAuthError not called for 403
+const auth = new Auxios({
+  events: {
+    onAuthError: (error) => {
+      console.log('This never gets called for 403!'); 
+    }
+  }
+});
+
+await api.get('/admin/users'); // 403 Forbidden
+// Error thrown but onAuthError callback not triggered
+```
+
+**After (1.2.3)**:
+```typescript
+// ✅ Correct: onAuthError called for 403
+const auth = new Auxios({
+  events: {
+    onAuthError: (error) => {
+      if (error.code === AuthErrorCode.FORBIDDEN) {
+        console.log('Permission denied!'); // ✅ Now gets called
+        showNotification('Access denied');
+      }
+    }
+  }
+});
+
+await api.get('/admin/users'); // 403 Forbidden
+// onAuthError callback properly triggered
+```
+
+### 📦 Impact
+- Non-breaking change
+- Consistent with existing documentation and examples
+- Aligns behavior with user expectations
+
+---
+
 ## [1.2.2] - 2025-11-03
 
 ### 🛠️ Fixes

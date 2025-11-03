@@ -4,6 +4,7 @@ import type {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from 'axios';
+import type { EventEmitter } from '../core/event-emitter';
 import type { RefreshController } from '../core/refresh-controller';
 import type { RequestQueue } from '../core/request-queue';
 import type { TokenManager } from '../core/token-manager';
@@ -21,6 +22,7 @@ export class AxiosInterceptor {
   private requestQueue: RequestQueue;
   private networkDetector: NetworkDetector;
   private retryStrategy: RetryStrategy;
+  private eventEmitter: EventEmitter;
   private requestInterceptorId: number | null = null;
   private responseInterceptorId: number | null = null;
 
@@ -31,6 +33,7 @@ export class AxiosInterceptor {
     requestQueue: RequestQueue,
     networkDetector: NetworkDetector,
     retryStrategy: RetryStrategy,
+    eventEmitter: EventEmitter,
   ) {
     this.axios = axios;
     this.tokenManager = tokenManager;
@@ -38,6 +41,7 @@ export class AxiosInterceptor {
     this.requestQueue = requestQueue;
     this.networkDetector = networkDetector;
     this.retryStrategy = retryStrategy;
+    this.eventEmitter = eventEmitter;
   }
 
   setup(): void {
@@ -143,6 +147,7 @@ export class AxiosInterceptor {
       const authError = Object.assign(new Error('Token has been blacklisted'), {
         code: AuthErrorCode.TOKEN_BLACKLISTED,
       });
+      this.eventEmitter.emitAuthError(authError);
       return Promise.reject(authError);
     }
 
@@ -152,6 +157,7 @@ export class AxiosInterceptor {
       originalError: error,
     });
 
+    this.eventEmitter.emitAuthError(forbiddenError);
     return Promise.reject(forbiddenError);
   }
 

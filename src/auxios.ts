@@ -69,6 +69,7 @@ export class Auxios {
       this.requestQueue,
       this.networkDetector,
       this.retryStrategy,
+      this.eventEmitter,
     );
 
     if (this.config.multiTabSync) {
@@ -253,6 +254,7 @@ export class Auxios {
       this.requestQueue,
       this.networkDetector,
       this.retryStrategy,
+      this.eventEmitter,
     );
 
     this.axiosInterceptor.setup();
