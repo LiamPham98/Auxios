@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Auxios } from '../auxios';
 import type { AuthError, TokenPair } from '../core/types';
+import { AuthErrorCode } from '../core/types';
 
 export function useAuth(auxios: Auxios) {
   const [isAuthenticated, setIsAuthenticated] = useState(() => auxios.isAuthenticated());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
+  const [isForbidden, setIsForbidden] = useState(false);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -17,6 +19,7 @@ export function useAuth(auxios: Auxios) {
         onTokenRefreshed: () => {
           setIsAuthenticated(true);
           setError(null);
+          setIsForbidden(false);
         },
         onTokenExpired: () => {
           setIsAuthenticated(false);
@@ -24,10 +27,14 @@ export function useAuth(auxios: Auxios) {
         onAuthError: (err) => {
           setError(err);
           setIsAuthenticated(false);
+          if (err.code === AuthErrorCode.FORBIDDEN) {
+            setIsForbidden(true);
+          }
         },
         onLogout: () => {
           setIsAuthenticated(false);
           setError(null);
+          setIsForbidden(false);
         },
         onRefreshStart: () => {
           setIsRefreshing(true);
@@ -46,6 +53,7 @@ export function useAuth(auxios: Auxios) {
       await auxios.setTokens(tokens);
       setIsAuthenticated(true);
       setError(null);
+      setIsForbidden(false);
     },
     [auxios],
   );
@@ -54,6 +62,7 @@ export function useAuth(auxios: Auxios) {
     await auxios.logout();
     setIsAuthenticated(false);
     setError(null);
+    setIsForbidden(false);
   }, [auxios]);
 
   const refreshTokens = useCallback(async () => {
@@ -62,6 +71,7 @@ export function useAuth(auxios: Auxios) {
       await auxios.refreshTokens();
       setIsAuthenticated(true);
       setError(null);
+      setIsForbidden(false);
     } catch (err) {
       setError(err as AuthError);
       setIsAuthenticated(false);
@@ -74,6 +84,7 @@ export function useAuth(auxios: Auxios) {
     isAuthenticated,
     isRefreshing,
     error,
+    isForbidden,
     login,
     logout,
     refreshTokens,
