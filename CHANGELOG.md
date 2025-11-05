@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2025-11-05
+
+### ✨ Features
+- **Add `isForbidden` state to React `useAuth` hook**: React applications can now access the 403 Forbidden error state through the `isForbidden` boolean returned by `useAuth`. This allows UI components to distinguish between unauthorized (401) and forbidden (403) states.
+
+### 🎯 Usage Example
+```typescript
+import { useAuth } from '@auxios/react';
+
+function ProfilePage() {
+  const { isAuthenticated, isForbidden, login } = useAuth();
+
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={login} />;
+  }
+  
+  if (isForbidden) {
+    return (
+      <div>
+        <h1>Access Denied</h1>
+        <p>You don't have permission to view this page.</p>
+      </div>
+    );
+  }
+
+  return <ProfileContent />;
+}
+```
+
+### 🔧 Technical Changes
+- **React Hook**: Added `isForbidden` state management with automatic reset on successful authentication and logout
+- **State Synchronization**: `isForbidden` is set to `true` when 403 errors occur, `false` on login/logout success
+- **Type Safety**: Exported `AuthErrorCode` from core types for proper error code checking
+
 ## [1.2.3] - 2025-11-03
 
 ### 🛠️ Fixes
