@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.6] - 2025-11-05
+
+### 🛠️ Fixes
+- **Fix SSR compatibility for storage adapters**: Fixed `localStorage is not defined` and `document is not defined` errors when using Auxios with Next.js SSR/SSG. All storage adapters now check for client-side environment before accessing browser APIs.
+
+### 🔧 Technical Changes
+- **LocalStorageAdapter**: Added `isClient` check before accessing `localStorage`
+- **SessionStorageAdapter**: Added `isClient` check before accessing `sessionStorage`
+- **CookieStorageAdapter**: Added `isClient` check before accessing `document.cookie`
+- **Universal Storage**: All storage adapters now safely return `null` on server-side
+
+### ✨ What This Fixes
+
+**Before (SSR Error)**:
+```javascript
+// ❌ Error: localStorage is not defined
+ReferenceError: localStorage is not defined
+    at y.getAccessToken (/next/server/chunks/142.js:426:49541)
+```
+
+**After (SSR Safe)**:
+```typescript
+// ✅ Works on both client and server
+import { Auxios, createStorage } from '@trungpham.liam/auxios/core';
+
+// Option 1: Use memory storage for SSR
+const auth = new Auxios({
+  storage: 'memory', // No browser APIs
+  multiTabSync: false, // Safe for SSR
+});
+
+// Option 2: Universal storage (auto-detects environment)
+const storage = createStorage('localStorage'); // SSR-safe!
+const auth = new Auxios({ storage });
+
+// Option 3: Dynamic storage selection
+const auth = new Auxios({
+  storage: typeof window !== 'undefined' ? 'localStorage' : 'memory',
+});
+```
+
+### 🎯 Next.js Integration
+- **New Example**: `examples/nextjs-usage.ts` with complete SSR integration patterns
+- **Documentation**: Added best practices for using Auxios with Next.js SSR/SSG
+
+### 📦 Impact
+- **Zero Breaking Changes**: All existing code continues to work
+- **SSR Compatibility**: Now works seamlessly with Next.js, Remix, and other SSR frameworks
+- **Bundle Size**: Minimal increase (+0.6 kB) for SSR compatibility checks
+
+---
+
 ## [1.2.5] - 2025-11-05
 
 ### 🛠️ Fixes

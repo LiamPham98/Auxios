@@ -6,26 +6,41 @@ const DEFAULT_REFRESH_TOKEN_KEY = 'auxios_refresh_token';
 export class LocalStorageAdapter implements TokenStorage {
   private accessTokenKey: string;
   private refreshTokenKey: string;
+  private isClient: boolean;
 
   constructor(keys?: StorageKeysConfig) {
     this.accessTokenKey = keys?.accessToken || DEFAULT_ACCESS_TOKEN_KEY;
     this.refreshTokenKey = keys?.refreshToken || DEFAULT_REFRESH_TOKEN_KEY;
+    // Check if running in browser environment
+    this.isClient = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
   }
 
   getAccessToken(): string | null {
+    if (!this.isClient) {
+      return null;
+    }
     return localStorage.getItem(this.accessTokenKey);
   }
 
   getRefreshToken(): string | null {
+    if (!this.isClient) {
+      return null;
+    }
     return localStorage.getItem(this.refreshTokenKey);
   }
 
   async setTokens(accessToken: string, refreshToken: string): Promise<void> {
+    if (!this.isClient) {
+      return;
+    }
     localStorage.setItem(this.accessTokenKey, accessToken);
     localStorage.setItem(this.refreshTokenKey, refreshToken);
   }
 
   async clearTokens(): Promise<void> {
+    if (!this.isClient) {
+      return;
+    }
     localStorage.removeItem(this.accessTokenKey);
     localStorage.removeItem(this.refreshTokenKey);
   }
@@ -34,26 +49,41 @@ export class LocalStorageAdapter implements TokenStorage {
 export class SessionStorageAdapter implements TokenStorage {
   private accessTokenKey: string;
   private refreshTokenKey: string;
+  private isClient: boolean;
 
   constructor(keys?: StorageKeysConfig) {
     this.accessTokenKey = keys?.accessToken || DEFAULT_ACCESS_TOKEN_KEY;
     this.refreshTokenKey = keys?.refreshToken || DEFAULT_REFRESH_TOKEN_KEY;
+    // Check if running in browser environment
+    this.isClient = typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined';
   }
 
   getAccessToken(): string | null {
+    if (!this.isClient) {
+      return null;
+    }
     return sessionStorage.getItem(this.accessTokenKey);
   }
 
   getRefreshToken(): string | null {
+    if (!this.isClient) {
+      return null;
+    }
     return sessionStorage.getItem(this.refreshTokenKey);
   }
 
   async setTokens(accessToken: string, refreshToken: string): Promise<void> {
+    if (!this.isClient) {
+      return;
+    }
     sessionStorage.setItem(this.accessTokenKey, accessToken);
     sessionStorage.setItem(this.refreshTokenKey, refreshToken);
   }
 
   async clearTokens(): Promise<void> {
+    if (!this.isClient) {
+      return;
+    }
     sessionStorage.removeItem(this.accessTokenKey);
     sessionStorage.removeItem(this.refreshTokenKey);
   }
@@ -86,6 +116,7 @@ export class CookieStorageAdapter implements TokenStorage {
   private cookieOptions: string;
   private accessTokenKey: string;
   private refreshTokenKey: string;
+  private isClient: boolean;
 
   constructor(
     options: {
@@ -108,27 +139,44 @@ export class CookieStorageAdapter implements TokenStorage {
     ]
       .filter(Boolean)
       .join('; ');
+    // Check if running in browser environment
+    this.isClient = typeof document !== 'undefined';
   }
 
   getAccessToken(): string | null {
+    if (!this.isClient) {
+      return null;
+    }
     return this.getCookie(this.accessTokenKey);
   }
 
   getRefreshToken(): string | null {
+    if (!this.isClient) {
+      return null;
+    }
     return this.getCookie(this.refreshTokenKey);
   }
 
   async setTokens(accessToken: string, refreshToken: string): Promise<void> {
+    if (!this.isClient) {
+      return;
+    }
     this.setCookie(this.accessTokenKey, accessToken);
     this.setCookie(this.refreshTokenKey, refreshToken);
   }
 
   async clearTokens(): Promise<void> {
+    if (!this.isClient) {
+      return;
+    }
     this.deleteCookie(this.accessTokenKey);
     this.deleteCookie(this.refreshTokenKey);
   }
 
   private getCookie(name: string): string | null {
+    if (!this.isClient) {
+      return null;
+    }
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) {
@@ -138,10 +186,16 @@ export class CookieStorageAdapter implements TokenStorage {
   }
 
   private setCookie(name: string, value: string): void {
+    if (!this.isClient) {
+      return;
+    }
     document.cookie = `${name}=${value}; ${this.cookieOptions}`;
   }
 
   private deleteCookie(name: string): void {
+    if (!this.isClient) {
+      return;
+    }
     document.cookie = `${name}=; ${this.cookieOptions}; max-age=0`;
   }
 }
