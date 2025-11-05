@@ -26,9 +26,12 @@ export function useAuth(auxios: Auxios) {
         },
         onAuthError: (err) => {
           setError(err);
-          setIsAuthenticated(false);
           if (err.code === AuthErrorCode.FORBIDDEN) {
             setIsForbidden(true);
+          }
+
+          if (err.code === AuthErrorCode.REFRESH_FAILED) {
+            setIsAuthenticated(false);
           }
         },
         onLogout: () => {

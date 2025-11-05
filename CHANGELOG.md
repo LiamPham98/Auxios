@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5] - 2025-11-05
+
+### 🛠️ Fixes
+- **Fix React useAuth hook authentication state management**: Fixed issue where `isAuthenticated` was incorrectly set to `false` for all auth errors. Now it only sets to `false` when `REFRESH_FAILED` occurs, preserving authentication state for other error types like `FORBIDDEN`.
+
+### 🔧 Technical Changes
+- **React Hook**: Updated `onAuthError` callback in `useAuth` to only clear authentication state on refresh failures
+- **State Preservation**: `isAuthenticated` remains `true` for 403 Forbidden errors, allowing users to stay logged in while handling permission issues
+
+### ✨ What This Fixes
+
+**Before**:
+```typescript
+// ❌ Wrong: Any auth error logs out the user
+const { isAuthenticated, error } = useAuth(auth);
+
+// User gets 403 Forbidden error
+await api.get('/admin/users'); // 403
+console.log(isAuthenticated); // false - user incorrectly logged out
+```
+
+**After**:
+```typescript
+// ✅ Correct: Only refresh failures log out the user
+const { isAuthenticated, isForbidden, error } = useAuth(auth);
+
+// User gets 403 Forbidden error  
+await api.get('/admin/users'); // 403
+console.log(isAuthenticated); // true - user stays logged in
+console.log(isForbidden); // true - proper error state
+```
+
+---
+
 ## [1.2.4] - 2025-11-05
 
 ### ✨ Features
