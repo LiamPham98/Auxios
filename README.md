@@ -430,6 +430,9 @@ interface AuxiosConfig {
     exponentialBackoff?: boolean; // Default: true
   };
   
+  // Retry Control
+  skipRetry?: boolean;         // Default: false
+  
   // Token Expiry
   tokenExpiry?: {
     proactiveRefreshOffset?: number;  // Default: 300s (5 minutes before expiry)
@@ -729,6 +732,45 @@ auth.updateConfig({
 
 ##### `destroy(): void`
 Cleanup resources (removes event listeners, timers, etc.).
+
+---
+
+## 🚀 Advanced Usage
+
+### Disabling Retry Behavior
+
+#### Global Retry Control
+
+```typescript
+const auth = new Auxios({
+  endpoints: {
+    refresh: '/api/auth/refresh'
+  },
+  skipRetry: true, // Disable retry globally
+  retry: {
+    maxAttempts: 3,
+    initialDelay: 1000
+  }
+});
+```
+
+#### Per-Request Retry Control
+
+```typescript
+// Skip retry for specific request using headers
+await auth.fetch('/api/data', {
+  headers: {
+    'X-Skip-Retry': 'true'
+  }
+});
+
+// Works with both fetch and axios
+await axios.get('/api/data', {
+  headers: {
+    'X-Skip-Retry': 'true'
+  }
+});
+```
 
 ```typescript
 auth.destroy();

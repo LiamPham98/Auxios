@@ -16,6 +16,7 @@ export class FetchWrapper {
   private networkDetector: NetworkDetector;
   private retryStrategy: RetryStrategy;
   private eventEmitter: EventEmitter;
+  private skipRetry: boolean;
 
   constructor(
     tokenManager: TokenManager,
@@ -24,6 +25,7 @@ export class FetchWrapper {
     networkDetector: NetworkDetector,
     retryStrategy: RetryStrategy,
     eventEmitter: EventEmitter,
+    skipRetry?: boolean,
   ) {
     this.tokenManager = tokenManager;
     this.refreshController = refreshController;
@@ -31,6 +33,7 @@ export class FetchWrapper {
     this.networkDetector = networkDetector;
     this.retryStrategy = retryStrategy;
     this.eventEmitter = eventEmitter;
+    this.skipRetry = skipRetry || false;
   }
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
@@ -65,6 +68,12 @@ export class FetchWrapper {
     options: RequestInit,
     response: Response,
   ): Promise<Response> {
+    // Skip server error retry handling if this is already a retry attempt
+    const headers = new Headers(options.headers);
+    if (headers.has('X-Retry-Attempt') || headers.has('x-retry-attempt')) {
+      return response;
+    }
+
     if (response.headers.get(TOKEN_BLACKLIST_HEADER)) {
       const error = Object.assign(new Error('Token has been blacklisted'), {
         code: AuthErrorCode.TOKEN_BLACKLISTED,
@@ -114,11 +123,54 @@ export class FetchWrapper {
   }
 
   private async handleServerError(url: string, options: RequestInit): Promise<Response> {
+    // Skip retry if configured globally or via request header
+    if (this.skipRetry) {
+      const serverError = Object.assign(new Error(`Server error: 500`), {
+        code: AuthErrorCode.SERVER_ERROR,
+        statusCode: 500,
+        originalError: new Response(null, { status: 500 }),
+      });
+      throw serverError;
+    }
+
+    const maxAttempts = this.retryStrategy.getConfig().maxAttempts;
+
     return await this.retryStrategy.execute(
-      () => fetch(url, this.prepareRequest(options)),
+      async () => {
+        // Add a flag to prevent recursive retry during the actual fetch call
+        const retryOptions = { ...options };
+
+        // Convert headers to plain object, add the retry flag, then create Headers
+        const existingHeaders: Record<string, string> = {};
+        if (retryOptions.headers) {
+          if (retryOptions.headers instanceof Headers) {
+            retryOptions.headers.forEach((value, key) => {
+              existingHeaders[key] = value;
+            });
+          } else if (typeof retryOptions.headers === 'object') {
+            Object.assign(existingHeaders, retryOptions.headers);
+          }
+        }
+
+        existingHeaders['X-Retry-Attempt'] = 'true';
+        retryOptions.headers = new Headers(existingHeaders);
+
+        // Direct fetch without going through our wrapper to avoid recursive retry logic
+        const requestOptions = this.prepareRequest(retryOptions);
+        const response = await fetch(url, requestOptions);
+
+        // For retry attempts, we need to handle the response directly here
+        // to avoid going through normal response handling which could cause recursive retries
+        if (response.status >= 500) {
+          throw response;
+        }
+
+        // For successful responses or non-server errors in retry, return directly
+        return response;
+      },
       (err, attempt) => {
         if (err instanceof Response) {
-          return err.status >= 500 && attempt < 3;
+          return err.status >= 500 && attempt < maxAttempts;
         }
         return false;
       },

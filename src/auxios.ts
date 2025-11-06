@@ -40,6 +40,7 @@ export class Auxios {
       storage: 'localStorage',
       multiTabSync: true,
       autoRefresh: true,
+      skipRetry: false,
       ...config,
       retry: { ...DEFAULT_RETRY_CONFIG, ...config.retry },
       tokenExpiry: { ...DEFAULT_TOKEN_EXPIRY_CONFIG, ...config.tokenExpiry },
@@ -70,6 +71,7 @@ export class Auxios {
       this.networkDetector,
       this.retryStrategy,
       this.eventEmitter,
+      this.config.skipRetry,
     );
 
     if (this.config.multiTabSync) {
@@ -255,6 +257,7 @@ export class Auxios {
       this.networkDetector,
       this.retryStrategy,
       this.eventEmitter,
+      this.config.skipRetry,
     );
 
     this.axiosInterceptor.setup();

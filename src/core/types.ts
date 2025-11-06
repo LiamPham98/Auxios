@@ -72,6 +72,7 @@ export interface AuxiosConfig {
   headers?: Record<string, string>;
   multiTabSync?: boolean;
   autoRefresh?: boolean;
+  skipRetry?: boolean;
   csrfToken?: string;
   storageKeys?: StorageKeysConfig;
   tokenFieldNames?: TokenFieldNamesConfig;

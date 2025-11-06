@@ -25,6 +25,7 @@ export class AxiosInterceptor {
   private eventEmitter: EventEmitter;
   private requestInterceptorId: number | null = null;
   private responseInterceptorId: number | null = null;
+  private skipRetry: boolean;
 
   constructor(
     axios: AxiosInstance,
@@ -34,6 +35,7 @@ export class AxiosInterceptor {
     networkDetector: NetworkDetector,
     retryStrategy: RetryStrategy,
     eventEmitter: EventEmitter,
+    skipRetry?: boolean,
   ) {
     this.axios = axios;
     this.tokenManager = tokenManager;
@@ -42,6 +44,7 @@ export class AxiosInterceptor {
     this.networkDetector = networkDetector;
     this.retryStrategy = retryStrategy;
     this.eventEmitter = eventEmitter;
+    this.skipRetry = skipRetry || false;
   }
 
   setup(): void {
@@ -92,6 +95,11 @@ export class AxiosInterceptor {
     }
 
     const status = error.response?.status;
+
+    // Skip server error retry handling if this is already a retry attempt
+    if (error.config?.headers?.['X-Retry-Attempt']) {
+      return Promise.reject(error);
+    }
 
     if (status === 401) {
       return this.handleAuthError(error);
@@ -166,18 +174,56 @@ export class AxiosInterceptor {
       return Promise.reject(error);
     }
 
+    // Skip retry if configured globally
+    if (this.skipRetry) {
+      const serverError = Object.assign(
+        new Error(`Server error: ${error.response?.status || 500}`),
+        {
+          code: AuthErrorCode.SERVER_ERROR,
+          statusCode: error.response?.status,
+          originalError: error,
+        },
+      );
+      return Promise.reject(serverError);
+    }
+
     const config = error.config;
+    const maxAttempts = this.retryStrategy.getConfig().maxAttempts;
 
     try {
       return await this.retryStrategy.execute(
-        () => this.axios.request(config),
+        async () => {
+          // Create a new config with retry flag to prevent recursive retry
+          const retryConfig = { ...config };
+          retryConfig.headers = {
+            ...retryConfig.headers,
+            'X-Retry-Attempt': 'true',
+          };
+
+          // Direct axios request without going through response handling
+          const response = await this.axios.request(retryConfig);
+
+          // For retry attempts, handle server errors directly to avoid recursive retries
+          if (response?.status >= 500) {
+            throw {
+              response,
+              config: retryConfig,
+              isAxiosError: true,
+              toJSON: () => ({}),
+              name: 'AxiosError',
+              message: `Server error: ${response.status}`,
+            };
+          }
+
+          return response;
+        },
         (err, attempt) => {
           if (!this.isAxiosError(err)) {
             return false;
           }
 
           const status = err.response?.status;
-          return status !== undefined && status >= 500 && attempt < 3;
+          return status !== undefined && status >= 500 && attempt < maxAttempts;
         },
       );
     } catch (retryError) {

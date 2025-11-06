@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-11-06
+
+### 🚀 New Features
+- **Add `skipRetry` option**: Global and per-request control over retry behavior
+  - Added `skipRetry?: boolean` to `AuxiosConfig` interface
+  - Global `skipRetry: true` disables retry for all requests
+  - Per-request control using `X-Skip-Retry: true` header
+  - Available for both fetch and axios interceptors
+
+### 🛠️ Fixes
+- **Fix infinite retry for 500 errors**: Fixed recursive retry issue when server returns 500 errors repeatedly
+
+### 🔧 Technical Changes
+- **FetchWrapper**: Added `skipRetry` parameter and logic to bypass retry
+- **AxiosInterceptor**: Added `skipRetry` parameter and logic to bypass retry
+- **Auxios Config**: Added default `skipRetry: false` value
+- **TypeScript**: Updated interfaces and constructor signatures
+
+### ✨ What This Fixes
+
+**Before**: 500 errors would retry infinitely regardless of `maxAttempts` setting
+**After**: 500 errors respect `maxAttempts` config and can be globally disabled
+
+---
+
 ## [1.2.6] - 2025-11-05
 
 ### 🛠️ Fixes
