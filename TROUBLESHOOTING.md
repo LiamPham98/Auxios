@@ -533,6 +533,116 @@ const auth = new Auxios({
 });
 ```
 
+#### 4. Proactive Refresh Offset Too Large (NEW in v1.3.0)
+
+If `proactiveRefreshOffset` is larger than token lifetime, refresh triggers immediately after setting tokens.
+
+**Symptoms:**
+- Refresh calls happening immediately after login
+- No 401 errors, just continuous refresh
+- Console shows `finalDelay: 10s` (minimum delay protection)
+
+**Solution:** Reduce the offset:
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  tokenExpiry: {
+    proactiveRefreshOffset: 60, // 1 minute (default changed from 300s to 60s)
+  },
+});
+```
+
+**How to debug:**
+Check console logs for:
+```
+[Auxios] ⏰ Scheduling proactive refresh: {
+  timeUntilExpiry: '300s',
+  configuredOffset: '60s',
+  safeOffset: '60s',        // Should be ≤ 80% of timeUntilExpiry
+  finalDelay: '240s',        // Should be ≥ 10s
+  willTriggerAt: '2023-12-03T...'  // Should be in the future
+}
+```
+
+If `finalDelay` is always `10s`, your offset is too large!
+
+#### 5. Maximum Refresh Attempts Exceeded (NEW in v1.3.0)
+
+Auxios now includes **automatic loop protection** that limits refresh attempts.
+
+**Default protection:**
+- Maximum 5 refresh attempts within 60 seconds
+- After 5th attempt, throws `MAX_REFRESH_ATTEMPTS_EXCEEDED` error
+
+**Error you might see:**
+```
+[Auxios] ❌ Max refresh attempts exceeded: {
+  attempts: 5,
+  limit: 5,
+  windowMs: 60000,
+  recentAttempts: ['2023-12-03T10:00:00.000Z', ...]
+}
+
+Error: Maximum refresh attempts (5) exceeded within 60000ms. Possible infinite loop detected.
+```
+
+**If you're hitting this limit legitimately**, increase it:
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  refreshLimits: {
+    maxRefreshAttempts: 10,      // Increase limit
+    refreshAttemptsWindow: 120000, // Or extend window to 2 minutes
+  },
+});
+```
+
+**For stricter protection:**
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  refreshLimits: {
+    maxRefreshAttempts: 3,       // Stricter: only 3 attempts
+    refreshAttemptsWindow: 30000, // Within 30 seconds
+  },
+});
+```
+
+**To debug the root cause:**
+1. Check if refresh API returns proper tokens
+2. Verify `expiresIn` values in response
+3. Check if server clock is synchronized
+4. Look for 401s triggering refresh
+
+#### 6. Monitor Refresh Timing (NEW in v1.3.0)
+
+**Enable detailed logging** to understand refresh behavior:
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  events: {
+    onRefreshStart: () => console.log('[Auxios] 🔄 Refresh started'),
+    onRefreshEnd: () => console.log('[Auxios] ✅ Refresh ended'),
+    onTokenRefreshed: (tokens) => console.log('[Auxios] Tokens refreshed'),
+    onAuthError: (error) => {
+      if (error.code === 'MAX_REFRESH_ATTEMPTS_EXCEEDED') {
+        console.error('[Auxios] ❌ LOOP DETECTED! Check configuration.');
+      }
+    },
+  },
+});
+```
+
+**Console logs to watch for:**
+```
+[Auxios] 🔑 Setting tokens: { hasExpiresIn: true, expiresIn: 3600, ... }
+[Auxios] 🕐 Scheduling refresh using expiresAt: { timeUntilExpiry: 3600, ... }
+[Auxios] ⏰ Scheduling proactive refresh: { finalDelay: '3540s', ... }
+[Auxios] 📊 Refresh attempt tracked: { currentAttempts: 1, limit: 5 }
+```
+
+If you see rapid successive `Refresh attempt tracked` logs, you have a loop!
+
 ---
 
 ## Still Having Issues?

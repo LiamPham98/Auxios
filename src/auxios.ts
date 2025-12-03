@@ -4,7 +4,7 @@ import { RefreshController } from './core/refresh-controller';
 import { RequestQueue } from './core/request-queue';
 import { TokenManager } from './core/token-manager';
 import { createStorage } from './core/token-storage';
-import type { AuxiosConfig, RetryConfig, TokenExpiryConfig, TokenPair } from './core/types';
+import type { AuxiosConfig, RefreshLimitsConfig, RetryConfig, TokenExpiryConfig, TokenPair } from './core/types';
 import { AxiosInterceptor } from './interceptors/axios-interceptor';
 import { FetchWrapper } from './interceptors/fetch-wrapper';
 import { MultiTabSync } from './sync/multi-tab-sync';
@@ -19,7 +19,12 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 };
 
 const DEFAULT_TOKEN_EXPIRY_CONFIG: TokenExpiryConfig = {
-  proactiveRefreshOffset: 300,
+  proactiveRefreshOffset: 60, // Reduced from 300s (5min) to 60s (1min) to prevent refresh loops
+};
+
+const DEFAULT_REFRESH_LIMITS_CONFIG: RefreshLimitsConfig = {
+  maxRefreshAttempts: 5, // Maximum refresh calls within time window
+  refreshAttemptsWindow: 60000, // 1 minute time window in milliseconds
 };
 
 export class Auxios {
@@ -44,6 +49,7 @@ export class Auxios {
       ...config,
       retry: { ...DEFAULT_RETRY_CONFIG, ...config.retry },
       tokenExpiry: { ...DEFAULT_TOKEN_EXPIRY_CONFIG, ...config.tokenExpiry },
+      refreshLimits: { ...DEFAULT_REFRESH_LIMITS_CONFIG, ...config.refreshLimits },
     };
 
     this.storage = createStorage(this.config.storage!, this.config.storageKeys);
@@ -62,6 +68,7 @@ export class Auxios {
       this.tokenManager,
       this.eventEmitter,
       this.requestQueue,
+      this.config.refreshLimits as RefreshLimitsConfig,
     );
 
     this.fetchWrapper = new FetchWrapper(

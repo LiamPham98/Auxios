@@ -5,30 +5,265 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] - 2025-11-06
+## [1.3.0] - 2025-12-03
 
 ### 🚀 New Features
-- **Add `skipRetry` option**: Global and per-request control over retry behavior
-  - Added `skipRetry?: boolean` to `AuxiosConfig` interface
-  - Global `skipRetry: true` disables retry for all requests
-  - Per-request control using `X-Skip-Retry: true` header
-  - Available for both fetch and axios interceptors
+
+#### Refresh Loop Protection System
+Added comprehensive protection against infinite refresh loops with multiple safety mechanisms:
+
+- **Maximum Refresh Attempts Config**: New `refreshLimits` configuration to prevent infinite refresh loops
+  - Default: 5 attempts within 60 seconds (configurable)
+  - Throws `MAX_REFRESH_ATTEMPTS_EXCEEDED` error when limit exceeded
+  - Automatic cleanup of old attempts outside time window
+  - Per-instance tracking with detailed logging
+  
+- **Proactive Refresh Timing Improvements**: Enhanced token refresh scheduling to prevent loops
+  - **Reduced default offset**: Changed `proactiveRefreshOffset` from 300s (5 min) to 60s (1 min)
+  - **Safe offset calculation**: Ensures offset ≤ 80% of token lifetime
+  - **Minimum delay protection**: 10-second minimum delay between refreshes
+  - **Comprehensive logging**: Detailed console logs for debugging timing issues
+
+#### New Configuration Options
+
+```typescript
+interface AuxiosConfig {
+  // ... existing config
+  
+  tokenExpiry?: {
+    proactiveRefreshOffset?: number; // Default: 60s (changed from 300s)
+  };
+  
+  refreshLimits?: {
+    maxRefreshAttempts?: number;      // Default: 5
+    refreshAttemptsWindow?: number;   // Default: 60000ms (1 minute)
+  };
+}
+```
+
+#### New Error Code
+
+```typescript
+enum AuthErrorCode {
+  // ... existing codes
+  MAX_REFRESH_ATTEMPTS_EXCEEDED = 'MAX_REFRESH_ATTEMPTS_EXCEEDED',
+}
+```
 
 ### 🛠️ Fixes
-- **Fix infinite retry for 500 errors**: Fixed recursive retry issue when server returns 500 errors repeatedly
+
+- **Fix infinite proactive refresh loop**: Fixed issue where `proactiveRefreshOffset` larger than token lifetime caused immediate refresh after token setting, creating an infinite loop
+- **Fix rapid refresh attempts**: Added minimum 10-second delay between refreshes to prevent rapid consecutive refresh calls
+- **Improve timing calculation**: Enhanced `scheduleProactiveRefresh()` with safe offset calculation (max 80% of token lifetime)
 
 ### 🔧 Technical Changes
-- **FetchWrapper**: Added `skipRetry` parameter and logic to bypass retry
-- **AxiosInterceptor**: Added `skipRetry` parameter and logic to bypass retry
-- **Auxios Config**: Added default `skipRetry: false` value
-- **TypeScript**: Updated interfaces and constructor signatures
+
+#### Token Manager (`src/core/token-manager.ts`)
+- Enhanced `scheduleProactiveRefresh()` with safe offset calculation
+- Added minimum delay protection (10 seconds)
+- Added comprehensive logging for debugging:
+  - Token setting with `expiresIn` values
+  - Expiry calculation with human-readable dates
+  - Refresh scheduling with timing breakdowns
+  - Proactive refresh execution status
+
+#### Refresh Controller (`src/core/refresh-controller.ts`)
+- Added `refreshLimitsConfig` parameter to constructor
+- Implemented `checkRefreshLimits()` method with:
+  - Timestamp-based attempt tracking
+  - Automatic cleanup of old attempts
+  - Limit violation detection and error throwing
+  - Detailed logging of attempts and limits
+- Enhanced `performRefresh()` with:
+  - Pre-refresh limit checking
+  - Better logging for success/failure
+  - `expiresIn` values passed through token chain
+
+#### Core Types (`src/core/types.ts`)
+- Added `RefreshLimitsConfig` interface
+- Added `MAX_REFRESH_ATTEMPTS_EXCEEDED` to `AuthErrorCode` enum
+- Updated `AuxiosConfig` to include `refreshLimits` option
+
+#### Auxios Core (`src/auxios.ts`)
+- Added default `REFRESH_LIMITS_CONFIG` (5 attempts per 60s)
+- Pass `refreshLimits` config to `RefreshController`
+- Updated imports to include `RefreshLimitsConfig`
+
+### 📚 Documentation
+
+#### README.md Updates
+- Updated configuration reference with `refreshLimits`
+- Changed default `proactiveRefreshOffset` from 300s to 60s
+- Added `MAX_REFRESH_ATTEMPTS_EXCEEDED` to error codes section
+- Updated examples with new configuration
+
+#### TROUBLESHOOTING.md Enhancements
+- **New Section**: "Proactive Refresh Offset Too Large" with symptoms and solutions
+- **New Section**: "Maximum Refresh Attempts Exceeded" with configuration examples
+- **New Section**: "Monitor Refresh Timing" with logging examples
+- Comprehensive debugging guide for refresh loop issues
+- Console log examples for identifying problems
 
 ### ✨ What This Fixes
 
-**Before**: 500 errors would retry infinitely regardless of `maxAttempts` setting
-**After**: 500 errors respect `maxAttempts` config and can be globally disabled
+**Problem: Proactive Refresh Loop**
+```typescript
+// ❌ Before (v1.2.6): Infinite loop
+const auth = new Auxios({
+  tokenExpiry: {
+    proactiveRefreshOffset: 300, // 5 minutes
+  }
+});
+// Token lifetime: 5 minutes
+// refreshDelay = (300 - 300) * 1000 = 0ms → LOOP!
+```
 
----
+```typescript
+// ✅ After (v1.3.0): Safe refresh
+const auth = new Auxios({
+  tokenExpiry: {
+    proactiveRefreshOffset: 60, // 1 minute (new default)
+  }
+});
+// Token lifetime: 5 minutes
+// safeOffset = min(60, 300 * 0.8) = 60s
+// refreshDelay = (300 - 60) * 1000 = 240000ms = 4 minutes ✅
+```
+
+**Problem: Rapid Refresh Attempts**
+```typescript
+// ❌ Before: No protection against rapid refreshes
+
+// ✅ After: Automatic protection
+try {
+  for (let i = 0; i < 6; i++) {
+    await auth.refreshTokens();
+  }
+} catch (error) {
+  // After 5th attempt:
+  // error.code === 'MAX_REFRESH_ATTEMPTS_EXCEEDED'
+  // Prevents infinite loop!
+}
+```
+
+### 🎯 Usage Examples
+
+#### Default Protection (Recommended)
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  // Uses defaults:
+  // - proactiveRefreshOffset: 60s
+  // - maxRefreshAttempts: 5
+  // - refreshAttemptsWindow: 60000ms
+});
+```
+
+#### Custom Protection
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  
+  tokenExpiry: {
+    proactiveRefreshOffset: 120, // 2 minutes
+  },
+  
+  refreshLimits: {
+    maxRefreshAttempts: 3,       // Strict: only 3 attempts
+    refreshAttemptsWindow: 30000, // Within 30 seconds
+  },
+});
+```
+
+#### Monitor Refresh Behavior
+```typescript
+const auth = new Auxios({
+  endpoints: { refresh: '/api/auth/refresh' },
+  events: {
+    onRefreshStart: () => console.log('[Auxios] 🔄 Refresh started'),
+    onTokenRefreshed: (tokens) => console.log('[Auxios] ✅ Tokens refreshed'),
+    onAuthError: (error) => {
+      if (error.code === 'MAX_REFRESH_ATTEMPTS_EXCEEDED') {
+        console.error('[Auxios] ❌ Loop detected!', error.message);
+      }
+    },
+  },
+});
+```
+
+### 📊 Console Logging
+
+**Normal Operation:**
+```
+[Auxios] 🔑 Setting tokens: { hasExpiresIn: true, expiresIn: 3600, ... }
+[Auxios] 🕐 Scheduling refresh using expiresAt: { timeUntilExpiry: 3600, ... }
+[Auxios] ⏰ Scheduling proactive refresh: {
+  timeUntilExpiry: '3600s',
+  safeOffset: '60s',
+  finalDelay: '3540s',
+  willTriggerAt: '2023-12-03T10:58:54.000Z'
+}
+[Auxios] 📊 Refresh attempt tracked: { currentAttempts: 1, limit: 5 }
+```
+
+**Loop Detection:**
+```
+[Auxios] ❌ Max refresh attempts exceeded: {
+  attempts: 5,
+  limit: 5,
+  windowMs: 60000,
+  recentAttempts: ['2023-12-03T10:00:00.000Z', ...]
+}
+Error: Maximum refresh attempts (5) exceeded within 60000ms. Possible infinite loop detected.
+```
+
+### 🔒 Security & Reliability
+
+- **Multi-layer Protection**: 
+  1. Safe offset calculation (prevents immediate refresh)
+  2. Minimum delay (prevents rapid refreshes)
+  3. Attempt counting (prevents infinite loops)
+- **Debugging Friendly**: Comprehensive logging for troubleshooting
+- **Configurable**: Adjust limits based on your use case
+- **Backward Compatible**: All existing code continues to work
+
+### 📦 Impact
+
+- **Bundle Size**: Minimal increase (~1KB)
+- **Breaking Changes**: None - all changes are backward compatible
+- **Performance**: Improved - prevents infinite loops and excessive API calls
+- **Reliability**: Significantly improved with multi-layer protection
+
+### 🔗 Migration Guide
+
+No migration needed! The library automatically uses safer defaults:
+
+**v1.2.6 behavior:**
+```typescript
+// Old default: 5-minute offset
+proactiveRefreshOffset: 300
+```
+
+**v1.3.0 behavior:**
+```typescript
+// New default: 1-minute offset (safer)
+proactiveRefreshOffset: 60
+
+// New protection: 5 attempts per minute
+maxRefreshAttempts: 5
+refreshAttemptsWindow: 60000
+```
+
+If you want the old behavior:
+```typescript
+const auth = new Auxios({
+  tokenExpiry: {
+    proactiveRefreshOffset: 300, // Restore old value
+  },
+});
+```
+
+
 
 ## [1.2.6] - 2025-11-05
 

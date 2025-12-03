@@ -31,6 +31,11 @@ export interface TokenExpiryConfig {
   proactiveRefreshOffset: number;
 }
 
+export interface RefreshLimitsConfig {
+  maxRefreshAttempts: number; // Maximum refresh calls within time window
+  refreshAttemptsWindow: number; // Time window in milliseconds
+}
+
 export interface EndpointsConfig {
   refresh: string;
   logout?: string;
@@ -68,6 +73,7 @@ export interface AuxiosConfig {
   storage?: StorageType;
   retry?: Partial<RetryConfig>;
   tokenExpiry?: Partial<TokenExpiryConfig>;
+  refreshLimits?: Partial<RefreshLimitsConfig>;
   events?: EventCallbacks;
   headers?: Record<string, string>;
   multiTabSync?: boolean;
@@ -96,6 +102,7 @@ export enum AuthErrorCode {
   FORBIDDEN = 'FORBIDDEN',
   SERVER_ERROR = 'SERVER_ERROR',
   TOKEN_BLACKLISTED = 'TOKEN_BLACKLISTED',
+  MAX_REFRESH_ATTEMPTS_EXCEEDED = 'MAX_REFRESH_ATTEMPTS_EXCEEDED',
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 

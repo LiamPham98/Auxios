@@ -125,7 +125,12 @@ const auth = new Auxios({
   },
   
   tokenExpiry: {
-    proactiveRefreshOffset: 300, // Refresh 5 min before expiry
+    proactiveRefreshOffset: 60, // Refresh 1 min before expiry (default: 60s)
+  },
+  
+  refreshLimits: {
+    maxRefreshAttempts: 5,      // Max refresh calls (default: 5)
+    refreshAttemptsWindow: 60000, // Within 60 seconds (default)
   },
   
   events: {
@@ -435,7 +440,13 @@ interface AuxiosConfig {
   
   // Token Expiry
   tokenExpiry?: {
-    proactiveRefreshOffset?: number;  // Default: 300s (5 minutes before expiry)
+    proactiveRefreshOffset?: number;  // Default: 60s (1 minute before expiry)
+  };
+  
+  // Refresh Loop Protection (NEW in v1.3.0)
+  refreshLimits?: {
+    maxRefreshAttempts?: number;      // Default: 5 attempts
+    refreshAttemptsWindow?: number;   // Default: 60000ms (1 minute)
   };
   
   // Features
@@ -570,6 +581,7 @@ enum AuthErrorCode {
   FORBIDDEN = 'FORBIDDEN',
   SERVER_ERROR = 'SERVER_ERROR',
   TOKEN_BLACKLISTED = 'TOKEN_BLACKLISTED',
+  MAX_REFRESH_ATTEMPTS_EXCEEDED = 'MAX_REFRESH_ATTEMPTS_EXCEEDED', // NEW in v1.3.0
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
