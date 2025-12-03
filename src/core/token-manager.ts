@@ -154,10 +154,7 @@ export class TokenManager {
     }
 
     // Ensure offset doesn't exceed 80% of token lifetime to prevent immediate refresh
-    const safeOffset = Math.min(
-      this.config.proactiveRefreshOffset,
-      timeUntilExpiry * 0.8,
-    );
+    const safeOffset = Math.min(this.config.proactiveRefreshOffset, timeUntilExpiry * 0.8);
     const calculatedDelay = (timeUntilExpiry - safeOffset) * 1000;
 
     // Minimum delay: 10 seconds to prevent rapid refresh loops

@@ -4,7 +4,13 @@ import { RefreshController } from './core/refresh-controller';
 import { RequestQueue } from './core/request-queue';
 import { TokenManager } from './core/token-manager';
 import { createStorage } from './core/token-storage';
-import type { AuxiosConfig, RefreshLimitsConfig, RetryConfig, TokenExpiryConfig, TokenPair } from './core/types';
+import type {
+  AuxiosConfig,
+  RefreshLimitsConfig,
+  RetryConfig,
+  TokenExpiryConfig,
+  TokenPair,
+} from './core/types';
 import { AxiosInterceptor } from './interceptors/axios-interceptor';
 import { FetchWrapper } from './interceptors/fetch-wrapper';
 import { MultiTabSync } from './sync/multi-tab-sync';
