@@ -68,6 +68,28 @@ export interface RefreshRequestConfig {
   method?: string;
 }
 
+/**
+ * Custom response interceptor configuration.
+ * Allows transforming responses and errors before they're returned/rejected.
+ */
+export interface ResponseInterceptorConfig<T = any> {
+  /**
+   * Called when a successful response is received.
+   * Can transform the response before it's returned to the caller.
+   * @param response - The response object (AxiosResponse for axios, Response for fetch)
+   * @returns The transformed response or a promise that resolves to it
+   */
+  onResponse?: (response: T) => T | Promise<T>;
+
+  /**
+   * Called when an error response is received.
+   * Can transform the error before it's rejected.
+   * @param error - The error object
+   * @returns The transformed error or a promise that resolves to it
+   */
+  onResponseError?: (error: unknown) => unknown | Promise<unknown>;
+}
+
 export interface AuxiosConfig {
   endpoints: EndpointsConfig;
   storage?: StorageType;
@@ -84,6 +106,11 @@ export interface AuxiosConfig {
   tokenFieldNames?: TokenFieldNamesConfig;
   buildRefreshRequest?: (refreshToken: string) => RefreshRequestConfig;
   refreshTokenFn?: (refreshToken: string) => Promise<RefreshResponse>;
+  /**
+   * Custom response interceptor configuration.
+   * Allows transforming responses and errors before they're returned/rejected.
+   */
+  responseInterceptor?: ResponseInterceptorConfig;
 }
 
 export interface AuthError extends Error {

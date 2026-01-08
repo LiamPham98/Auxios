@@ -3,6 +3,7 @@ import type { RefreshController } from '../core/refresh-controller';
 import type { RequestQueue } from '../core/request-queue';
 import type { TokenManager } from '../core/token-manager';
 import { AuthErrorCode } from '../core/types';
+import type { ResponseInterceptorConfig } from '../core/types';
 import type { NetworkDetector } from '../utils/network-detector';
 import type { RetryStrategy } from '../utils/retry-strategy';
 
@@ -17,6 +18,7 @@ export class FetchWrapper {
   private retryStrategy: RetryStrategy;
   private eventEmitter: EventEmitter;
   private skipRetry: boolean;
+  private responseInterceptor?: ResponseInterceptorConfig<Response>;
 
   constructor(
     tokenManager: TokenManager,
@@ -26,6 +28,7 @@ export class FetchWrapper {
     retryStrategy: RetryStrategy,
     eventEmitter: EventEmitter,
     skipRetry?: boolean,
+    responseInterceptor?: ResponseInterceptorConfig<Response>,
   ) {
     this.tokenManager = tokenManager;
     this.refreshController = refreshController;
@@ -34,6 +37,7 @@ export class FetchWrapper {
     this.retryStrategy = retryStrategy;
     this.eventEmitter = eventEmitter;
     this.skipRetry = skipRetry || false;
+    this.responseInterceptor = responseInterceptor;
   }
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
@@ -97,6 +101,11 @@ export class FetchWrapper {
 
     if (response.status >= 500) {
       return this.handleServerError(url, options);
+    }
+
+    // Apply custom response interceptor if configured
+    if (this.responseInterceptor?.onResponse) {
+      return await this.responseInterceptor.onResponse(response);
     }
 
     return response;
@@ -178,13 +187,18 @@ export class FetchWrapper {
   }
 
   private async handleError(url: string, options: RequestInit, error: unknown): Promise<Response> {
+    // Apply custom error interceptor if configured
+    const processedError = this.responseInterceptor?.onResponseError
+      ? await this.responseInterceptor.onResponseError(error)
+      : error;
+
     if (!this.networkDetector.isOnline()) {
       const isOnline = await this.networkDetector.waitForOnline();
 
       if (!isOnline) {
         const networkError = Object.assign(new Error('Network offline'), {
           code: AuthErrorCode.NETWORK_ERROR,
-          originalError: error,
+          originalError: processedError,
         });
         throw networkError;
       }
@@ -192,6 +206,6 @@ export class FetchWrapper {
       return this.fetch(url, options);
     }
 
-    throw error;
+    throw processedError;
   }
 }

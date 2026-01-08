@@ -16,6 +16,23 @@ const auth = new Auxios({
       console.error('Auth error:', error);
     },
   },
+  // Custom response interceptor example
+  responseInterceptor: {
+    // Transform successful responses
+    onResponse: (response) => {
+      console.log('Response received:', response.status, response.config?.url);
+      // You can transform the response here
+      // For example, extract nested data: return response.data?.result
+      return response;
+    },
+    // Handle and transform errors
+    onResponseError: (error) => {
+      console.error('Response error:', error);
+      // You can transform or log errors here
+      // For example, add custom error tracking
+      return error;
+    },
+  },
 });
 
 // Create axios instance

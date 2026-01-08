@@ -85,6 +85,7 @@ export class Auxios {
       this.retryStrategy,
       this.eventEmitter,
       this.config.skipRetry,
+      this.config.responseInterceptor,
     );
 
     if (this.config.multiTabSync) {
@@ -271,6 +272,7 @@ export class Auxios {
       this.retryStrategy,
       this.eventEmitter,
       this.config.skipRetry,
+      this.config.responseInterceptor,
     );
 
     this.axiosInterceptor.setup();

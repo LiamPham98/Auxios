@@ -9,6 +9,7 @@ import type { RefreshController } from '../core/refresh-controller';
 import type { RequestQueue } from '../core/request-queue';
 import type { TokenManager } from '../core/token-manager';
 import { AuthErrorCode } from '../core/types';
+import type { ResponseInterceptorConfig } from '../core/types';
 import type { NetworkDetector } from '../utils/network-detector';
 import type { RetryStrategy } from '../utils/retry-strategy';
 
@@ -26,6 +27,7 @@ export class AxiosInterceptor {
   private requestInterceptorId: number | null = null;
   private responseInterceptorId: number | null = null;
   private skipRetry: boolean;
+  private responseInterceptor?: ResponseInterceptorConfig<AxiosResponse>;
 
   constructor(
     axios: AxiosInstance,
@@ -36,6 +38,7 @@ export class AxiosInterceptor {
     retryStrategy: RetryStrategy,
     eventEmitter: EventEmitter,
     skipRetry?: boolean,
+    responseInterceptor?: ResponseInterceptorConfig<AxiosResponse>,
   ) {
     this.axios = axios;
     this.tokenManager = tokenManager;
@@ -45,6 +48,7 @@ export class AxiosInterceptor {
     this.retryStrategy = retryStrategy;
     this.eventEmitter = eventEmitter;
     this.skipRetry = skipRetry || false;
+    this.responseInterceptor = responseInterceptor;
   }
 
   setup(): void {
@@ -73,7 +77,7 @@ export class AxiosInterceptor {
     return config;
   }
 
-  private onResponse(response: AxiosResponse): AxiosResponse {
+  private async onResponse(response: AxiosResponse): Promise<AxiosResponse> {
     if (response.headers[TOKEN_BLACKLIST_HEADER.toLowerCase()]) {
       throw {
         response,
@@ -86,38 +90,48 @@ export class AxiosInterceptor {
       };
     }
 
+    // Apply custom response interceptor if configured
+    if (this.responseInterceptor?.onResponse) {
+      return await this.responseInterceptor.onResponse(response);
+    }
+
     return response;
   }
 
   private async onResponseError(error: unknown): Promise<unknown> {
-    if (!this.isAxiosError(error)) {
-      return Promise.reject(error);
+    // Apply custom error interceptor if configured
+    const processedError = this.responseInterceptor?.onResponseError
+      ? await this.responseInterceptor.onResponseError(error)
+      : error;
+
+    if (!this.isAxiosError(processedError)) {
+      return Promise.reject(processedError);
     }
 
-    const status = error.response?.status;
+    const status = processedError.response?.status;
 
     // Skip server error retry handling if this is already a retry attempt
-    if (error.config?.headers?.['X-Retry-Attempt']) {
-      return Promise.reject(error);
+    if (processedError.config?.headers?.['X-Retry-Attempt']) {
+      return Promise.reject(processedError);
     }
 
     if (status === 401) {
-      return this.handleAuthError(error);
+      return this.handleAuthError(processedError);
     }
 
     if (status === 403) {
-      return this.handleForbiddenError(error);
+      return this.handleForbiddenError(processedError);
     }
 
     if (status && status >= 500) {
-      return this.handleServerError(error);
+      return this.handleServerError(processedError);
     }
 
     if (!status && !this.networkDetector.isOnline()) {
-      return this.handleNetworkError(error);
+      return this.handleNetworkError(processedError);
     }
 
-    return Promise.reject(error);
+    return Promise.reject(processedError);
   }
 
   private async handleAuthError(error: unknown): Promise<unknown> {
